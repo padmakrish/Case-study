@@ -1,0 +1,166 @@
+brief introduction what i have to done
+
+i have craeted AWS free tier account then login to the web console get the aws_access_key and aws_secret_key through these i have configured AWS CLI.
+
+then after i have installed Ansible and set up the Password less authentication.please find below steps
+
+aws_access_key: "AKIAI43WM76JCIYHTM4Q"
+aws_secret_key: "q03vhxkFN2a2Xez/0unIbHu9eJARXLXVUWVZQa"
+
+
+1) I have Created vpc,ec2 ,IGW, subnet,Route Table by using Anisble play book.
+
+2) then in the EC2 instance which i have created by using Ansible,installed Docker.
+
+By using wget command i have installed Docker.
+
+3)after installed by using docker-compose.yml file i have created one nginx webserver,modified index.htlm by Saikrishna.html.
+
+4)up the docker-compose.yml up then start the docker-compose.yml start.
+
+4)finally inspect the docker container id
+
+================================================================================================================================================================
+
+Created some samle play book like ansible-playbook case study.yml
+
+---
+- name: Create a case Study EC2 instance
+  hosts: localhost
+  gather_facts: False
+
+  vars:
+      region: us-east-1
+      instance_type: t2.micro
+      ami: ami-f4cc1de2  
+      keypair: Demo # pem file name
+  
+  tasks:
+
+    - name: Create an ec2 instance
+      ec2:
+         key_name: "{{ keypair }}"
+         group: einsteinish  # security group name
+         instance_type: "{{ instance_type}}"
+         image: "{{ ami }}"
+         wait: true
+         region: "{{ region }}"
+         count: 1  # default
+         count_tag:
+            Name: Demo
+         instance_tags:
+            Name: Demo
+         vpc_subnet_id: subnet-cef59af4
+         assign_public_ip: yes
+      register: ec2
+	  
+- name: create VPC
+  ec2_vpc_net:
+    name: "{{ vpc_name }}"
+    cidr_block: "{{ vpc_cidr }}"
+    region: "{{ region }}"
+    state: present
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+  register: vpc
+	  
+- name: associate subnet to the VPC
+  ec2_vpc_subnet:
+   state: present
+   vpc_id: "{{ vpc_id }}"
+   region: "{{ region }}"
+   cidr: "{{ subnet_cidr }}"
+   aws_access_key: "{{ aws_access_key }}"
+   aws_secret_key: "{{ aws_secret_key }}"
+   map_public: yes
+   resource_tags:
+     Name: "{{ subnet_name }}"
+  register: subnet
+ 
+- name: create IGW
+  ec2_vpc_igw:
+   vpc_id: "{{ vpc_id }}"
+   region: "{{ region }}"
+   aws_access_key: "{{ aws_access_key }}"
+   aws_secret_key: "{{ aws_secret_key }}"
+   state: "present"
+   tags:
+     Name: "{{ igw_name }}"
+  register: igw 
+- name: Route IGW
+   ec2_vpc_route_table:
+    vpc_id: "{{ vpc_id }}"
+    region: "{{ region }}"
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    subnets:
+      - "{{ subnet.subnet.id }}"
+    routes:
+      - dest: 0.0.0.0/0
+        gateway_id: "{{ igw.gateway_id  }}"
+    tags:
+      Name: "{{ route_name }}"
+ 
+- name: Create security group
+  ec2_group:
+    name: "{{ Case _Study }}_security_group"
+    description: "{{ Case _Study }} security group"
+    region: "{{ region }}"
+    rules:
+      - proto: tcp  # ssh
+        from_port: 22
+        to_port: 22
+        cidr_ip: 0.0.0.0/0
+      - proto: tcp  # http
+        from_port: 80
+        to_port: 80
+        cidr_ip: 0.0.0.0/0
+      - proto: tcp  # https
+        from_port: 443
+        to_port: 443
+        cidr_ip: 0.0.0.0/0
+    rules_egress:
+      - proto: all
+        cidr_ip: 0.0.0.0/0
+  register: test_firewall 
+  
+  ===============================================================================
+  
+  created one SaiKrishna index.html
+  
+  <!DOCTYPE html>
+<html>
+<head>
+<title>case study 1</title>
+</head>
+<body>
+<h1>This is a sample "case study 1" response</h1>
+</body>
+</html>
+  
+  
+  
+  Installed nginx webserver by using docker-compose file
+  
+  docker-compose.yml
+  
+  
+  #Nginx Service
+  webserver:
+    image: nginx:alpine
+    container_name: webserver
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+	   src: Sai krishna.html
+      dest: /usr/share/nginx/html/index.html
+      - ./:/var/www
+      - ./nginx/conf.d/:/etc/nginx/conf.d/
+    networks:
+      - app-network
+	  
+	  
+	  
